@@ -10,8 +10,11 @@ namespace Perceptron
 
     public enum ImageType
     {
-        Circle,
-        Rhombus,
+        LetterB,
+        LetterG,
+        LetterE,
+        LetterI,
+        Unknown
     }
 
     public class Perceptron
@@ -31,10 +34,10 @@ namespace Perceptron
         #region Структуры данных
 
         // Связи между рецепторным и ассоциативным слоями
-        private  List<List<List<Coordinates>>> Connections { get; set; }
+        private List<List<List<Coordinates>>> Connections { get; set; }
 
         // Веса
-        private List<List<double>> Weights { get; set; }
+        private List<List<List<double>>> Weights { get; set; }
         #endregion
 
         #region Параметры обучения
@@ -47,6 +50,7 @@ namespace Perceptron
         #endregion
         #region Служебные переменные
         private Random Random { get; set; } = new Random();
+        private bool IsDebugging { get; set; }
         #endregion
         public Perceptron(int size = 20, int connectionsCount = 20, int activationLimit = 3)
         {
@@ -54,16 +58,27 @@ namespace Perceptron
             ConnectionsCount = connectionsCount;
             ActivationLimit = activationLimit;
 
-            Weights = new List<List<double>>();
+            Weights = new List<List<List<double>>>();
+            for (var i = 0; i < Size; i++)
+            {
+                Weights.Add(new List<List<double>>());
+                for (var j = 0; j < Size; j++)
+                {
+                    Weights[i].Add(new List<double>());
+                    for (var k = 0; k < 4; k++)
+                    {
+                        Weights[i][j].Add(0.0);
+                    }
+                }
+            }
+
             Connections = new List<List<List<Coordinates>>>();
 
             for (var i = 0; i < Size; i++)
             {
-                Weights.Add(new List<double>());
                 Connections.Add(new List<List<Coordinates>>());
                 for (var j = 0; j < Size; j++)
                 {
-                    Weights[i].Add(0.0);
                     Connections[i].Add(new List<Coordinates>());
                     for (var k = 0; k < ConnectionsCount; k++)
                     {
@@ -75,7 +90,6 @@ namespace Perceptron
 
         public bool Run()
         {
-            // TODO: засунуть все в фор по количеству итераций. Связи постоянны или меняются каждую итерацию? Очищать слои на каждой итерации.
             // Генерация случайных связей между рецепторами и нейронами
             for (var x = 0; x < Size; x++)
             {
@@ -89,33 +103,41 @@ namespace Perceptron
             for (var step = 1; step <= StepCount; step++)
             {
                 // Генерируем случайчное изображение
-                var imageType = (step % 2) == 0 ? ImageType.Circle : ImageType.Rhombus;
+
+                ImageType imageType = ImageType.Unknown;
+                if (step % 4 == 0)
+                    imageType = ImageType.LetterB;
+                else if (step % 4 == 1)
+                    imageType = ImageType.LetterG;
+                else if (step % 4 == 2)
+                    imageType = ImageType.LetterE;
+                else if (step % 4 == 3)
+                    imageType = ImageType.LetterI;
                 var image = GenerateImage(imageType);
 
                 // Распознаем изображение
                 var recognizedImage = Recognize(image);
 
                 // Обучаем, если изображение не распознано
-                if (imageType != recognizedImage.Item1)
+                var wrongImages = recognizedImage.Item1.Where(img => img != imageType).ToList();
+
+                foreach (var wrongImageType in wrongImages)
                 {
                     for (var x = 0; x < Size; x++)
                     {
-                        for (var y = 0; y < Size; y++)
-                        {
-                            if (recognizedImage.Item2[x][y] == 1)
+                            for (var y = 0; y < Size; y++)
                             {
-                                if (imageType == ImageType.Circle)
-                                    Weights[x][y] += WeightCorrection;
-                                else
-                                    Weights[x][y] -= WeightCorrection;
+                                if (recognizedImage.Item2[x][y] == 1)
+                                {
+                                    if (wrongImageType )
+                                        Weights[x][y][(int)wrongImageType] += WeightCorrection;
+                                    else
+                                        Weights[x][y][(int)wrongImageType] -= WeightCorrection;
+                                }
                             }
-                        }
                     }
                 }
-                else
-                {
-                    Successes += 1;
-                }
+     
 
                 if (step % 100 == 0)
                 {
@@ -128,7 +150,7 @@ namespace Perceptron
             return true;
         }
 
-        public (ImageType, List<List<int>>) Recognize(Bitmap image)
+        public (List<ImageType>,  List<List<int>>) Recognize(Bitmap image)
         {
             // Формируем ассоциативный слой
             var associationLayer = new List<List<int>>();
@@ -170,17 +192,23 @@ namespace Perceptron
 
             // Отображение
             var effectorLayer = 0.0;
+            var result = new List<ImageType>();
             for (var x = 0; x < Size; x++)
             {
                 for (var y = 0; y < Size; y++)
                 {
-                    effectorLayer += associationLayer[x][y] * Weights[x][y];
+                    for (var k = 0; k < 4; k++)
+                    {
+                        effectorLayer += associationLayer[x][y] * Weights[x][y][k];
+                        if (effectorLayer > 0)
+                            result.Add((ImageType)k);
+                    }
                 }
             }
 
-            var recognizedImage = (effectorLayer > 0 ? ImageType.Circle : ImageType.Rhombus, associationLayer);
-            return recognizedImage;
+            return (result, associationLayer);
         }
+
         public Bitmap GenerateImage(ImageType imageType)
         {
             var image = new Bitmap(Size, Size);
