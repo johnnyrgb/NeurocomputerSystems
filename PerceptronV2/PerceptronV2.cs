@@ -1,7 +1,8 @@
 ﻿using System.Drawing;
+using System.Security.AccessControl;
 using static System.Net.Mime.MediaTypeNames;
 
-namespace Perceptron
+namespace PerceptronV2
 {
     public struct Coordinates
     {
@@ -17,7 +18,7 @@ namespace Perceptron
         Unknown
     }
 
-    public class Perceptron
+    public class PerceptronV2
     {
 
         #region Параметры модели
@@ -44,7 +45,7 @@ namespace Perceptron
         // Успешные ответы
         private int Successes { get; set; } = 0;
         // Количество итераций
-        private int StepCount { get; set; } = 100000;
+        private int StepCount { get; set; } = 200000;
         // Текущая итерация
         private int CurrentStep { get; set; }
         #endregion
@@ -52,7 +53,7 @@ namespace Perceptron
         private Random Random { get; set; } = new Random();
         private bool IsDebugging { get; set; }
         #endregion
-        public Perceptron(int size = 20, int connectionsCount = 20, int activationLimit = 3)
+        public PerceptronV2(int size = 20, int connectionsCount = 20, int activationLimit = 3)
         {
             Size = size;
             ConnectionsCount = connectionsCount;
@@ -116,27 +117,46 @@ namespace Perceptron
                 var image = GenerateImage(imageType);
 
                 // Распознаем изображение
-                var recognizedImage = Recognize(image);
+                var recognizedImages = Recognize(image);
 
                 // Обучаем, если изображение не распознано
-                var wrongImages = recognizedImage.Item1.Where(img => img != imageType).ToList();
-
-                foreach (var wrongImageType in wrongImages)
+                if (recognizedImages.Item1.Count == 1 && recognizedImages.Item1.Contains(imageType))
                 {
-                    for (var x = 0; x < Size; x++)
+                    Successes += 1;
+                }
+                else
+                {
+                    // наказать неугадавшего
+                    if (recognizedImages.Item1.Contains(imageType) == false)
                     {
+                        for (var x = 0; x < Size; x++)
+                        {
                             for (var y = 0; y < Size; y++)
                             {
-                                if (recognizedImage.Item2[x][y] == 1)
+                                if (recognizedImages.Item2[x][y] == 1)
                                 {
-                                    if (wrongImageType )
-                                        Weights[x][y][(int)wrongImageType] += WeightCorrection;
-                                    else
-                                        Weights[x][y][(int)wrongImageType] -= WeightCorrection;
+                                    Weights[x][y][(int)imageType] += WeightCorrection;
                                 }
                             }
+                        }
+                    }
+                    // наказать лишних
+                    var wrongImages = recognizedImages.Item1.Where(img => img != imageType).ToList();
+                    foreach (var wrongImage in wrongImages)
+                    {
+                        for (var x = 0; x < Size; x++)
+                        {
+                            for (var y = 0; y < Size; y++)
+                            {
+                                if (recognizedImages.Item2[x][y] == 1)
+                                {
+                                    Weights[x][y][(int)wrongImage] -= WeightCorrection;
+                                }
+                            }
+                        }
                     }
                 }
+                
      
 
                 if (step % 100 == 0)
@@ -150,7 +170,7 @@ namespace Perceptron
             return true;
         }
 
-        public (List<ImageType>,  List<List<int>>) Recognize(Bitmap image)
+        public (List<ImageType>, List<List<int>>) Recognize(Bitmap image)
         {
             // Формируем ассоциативный слой
             var associationLayer = new List<List<int>>();
@@ -193,17 +213,18 @@ namespace Perceptron
             // Отображение
             var effectorLayer = 0.0;
             var result = new List<ImageType>();
-            for (var x = 0; x < Size; x++)
+            for (var k = 0; k < 4; k++)
             {
-                for (var y = 0; y < Size; y++)
+                for (var x = 0; x < Size; x++)
                 {
-                    for (var k = 0; k < 4; k++)
+                    for (var y = 0; y < Size; y++)
                     {
                         effectorLayer += associationLayer[x][y] * Weights[x][y][k];
-                        if (effectorLayer > 0)
-                            result.Add((ImageType)k);
+                        
                     }
                 }
+                if (effectorLayer > 0)
+                    result.Add((ImageType)k);
             }
 
             return (result, associationLayer);
@@ -215,25 +236,49 @@ namespace Perceptron
             using (Graphics g = Graphics.FromImage(image))
             {
                 g.Clear(Color.White);
+
+                var side = Random.Next(Size / 5, Size / 2);
+                var centerX = Random.Next(side, Size - side);
+                var centerY = Random.Next(side, Size - side);
+                Point[] points;
                 switch (imageType)
                 {
-                    case ImageType.Circle:
-                        int radius = Random.Next(Size / 5, Size / 2);
-                        int x = Random.Next(radius, Size - radius);
-                        int y = Random.Next(radius, Size - radius);
-                        g.DrawEllipse(Pens.Black, x - radius, y - radius, radius * 2, radius * 2);
+                    case ImageType.LetterB:
+                        points = new Point[6];
+                        points[0] = new Point(centerX + side / 2, centerY - side / 2);
+                        points[1] = new Point(centerX - side / 2, centerY - side / 2);
+                        points[2] = new Point(centerX - side / 2, centerY + side / 2);
+                        points[3] = new Point(centerX + side / 2, centerY + side / 2);
+                        points[4] = new Point(centerX + side / 2, centerY);
+                        points[5] = new Point(centerX - side / 2, centerY);
+                        g.DrawLines(Pens.Black, points);
                         break;
 
-                    case ImageType.Rhombus:
-                        int side = Random.Next(Size / 5, Size / 2);
-                        int centerX = Random.Next(side, Size - side);
-                        int centerY = Random.Next(side, Size - side);
-                        Point[] points = new Point[4];
-                        points[0] = new Point(centerX, centerY - side);
-                        points[1] = new Point(centerX + side, centerY);
-                        points[2] = new Point(centerX, centerY + side);
-                        points[3] = new Point(centerX - side, centerY);
-                        g.DrawPolygon(Pens.Black, points);
+                    case ImageType.LetterG:
+                        points = new Point[3];
+                        points[0] = new Point(centerX + side / 2, centerY - side / 2);
+                        points[1] = new Point(centerX - side / 2, centerY - side / 2);
+                        points[2] = new Point(centerX - side / 2, centerY + side / 2);
+                        g.DrawLines(Pens.Black, points);
+                        break;
+
+                    case ImageType.LetterE:
+                        points = new Point[4];
+                        points[0] = new Point(centerX + side / 2, centerY - side / 2);
+                        points[1] = new Point(centerX - side / 2, centerY - side / 2);
+                        points[2] = new Point(centerX - side / 2, centerY + side / 2);
+                        points[3] = new Point(centerX + side / 2, centerY + side / 2);
+                        g.DrawLines(Pens.Black, points);
+                        g.DrawLine(Pens.Black, new Point(centerX + side / 2, centerY), new Point(centerX - side / 2, centerY));
+                        break;
+
+                        case ImageType.LetterI:
+                        points = new Point[4];
+                        points[0] = new Point(centerX - side / 2, centerY - side / 2);
+                        points[1] = new Point(centerX - side / 2, centerY + side / 2);
+                        points[2] = new Point(centerX + side / 2, centerY - side / 2);
+                        points[3] = new Point(centerX + side / 2, centerY + side / 2);
+                        g.DrawLines(Pens.Black, points);
                         break;
                 }
             }

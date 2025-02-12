@@ -41,7 +41,7 @@ namespace Perceptron
         // Успешные ответы
         private int Successes { get; set; } = 0;
         // Количество итераций
-        private int StepCount { get; set; } = 100000;
+        private int StepCount { get; set; } = 1_000_000;
         // Текущая итерация
         private int CurrentStep { get; set; }
         #endregion
