@@ -1,8 +1,9 @@
 ﻿using System.Drawing;
 using System.Security.AccessControl;
 using static System.Net.Mime.MediaTypeNames;
+using Font = System.Drawing.Font;
 
-namespace PerceptronV2
+namespace PerceptronV3
 {
     public struct Coordinates
     {
@@ -18,9 +19,33 @@ namespace PerceptronV2
         Unknown
     }
 
-    public class PerceptronV2
+    public class PerceptronV3
     {
+        private Dictionary<string, ImageType> CodeImage = new Dictionary<string, ImageType>()
+        {
+            { "00", ImageType.LetterB },
+            { "01", ImageType.LetterG },
+            { "10", ImageType.LetterE },
+            { "11", ImageType.LetterI }
+        };
 
+        private Dictionary<ImageType, string> ImageCode = new Dictionary<ImageType, string>()
+        {
+            {  ImageType.LetterB, "00" },
+            {  ImageType.LetterG, "01" },
+            {  ImageType.LetterE, "10" },
+            {  ImageType.LetterI, "11" }
+        };
+
+        public ImageType GetImageByCode(string code)
+        {
+            return CodeImage.GetValueOrDefault(code, ImageType.Unknown);
+        }
+
+        public string GetCodeByImage(ImageType imageType)
+        {
+            return ImageCode.GetValueOrDefault(imageType, "");
+        }
         #region Параметры модели
         // Размер изображения
         private int Size { get; set; } = 100;
@@ -48,7 +73,7 @@ namespace PerceptronV2
 
         private int iterationCount = 0;
         // Количество итераций
-        private int StepCount { get; set; } = 5_000_000;
+        private int StepCount { get; set; } = 150_000;
         // Текущая итерация
         private int CurrentStep { get; set; }
         #endregion
@@ -56,7 +81,7 @@ namespace PerceptronV2
         private Random Random { get; set; } = new Random();
         private bool IsDebugging { get; set; }
         #endregion
-        public PerceptronV2(int size = 20, int connectionsCount = 20, int activationLimit = 3)
+        public PerceptronV3(int size = 70, int connectionsCount = 70, int activationLimit = 3)
         {
             Size = size;
             ConnectionsCount = connectionsCount;
@@ -69,7 +94,7 @@ namespace PerceptronV2
                 for (var j = 0; j < Size; j++)
                 {
                     Weights[i].Add(new List<double>());
-                    for (var k = 0; k < 4; k++)
+                    for (var k = 0; k < 2; k++)
                     {
                         Weights[i][j].Add(0.0);
                     }
@@ -115,50 +140,39 @@ namespace PerceptronV2
                 var recognizeResult = Recognize(image);
 
                 // Обучаем, если изображение не распознано
-                if (recognizeResult.ImageTypes.Count == 1 && recognizeResult.ImageTypes.Contains(imageType))
+                if (recognizeResult.ImageType == imageType)
                 {
                     Interlocked.Increment(ref successes);
                 }
                 else
                 {
-                    // наказать неугадавшего
-                    if (!recognizeResult.ImageTypes.Contains(imageType))
+                    for (int k = 0; k < 2; k++)
                     {
-                        for (var x = 0; x < Size; x++)
+                        if (recognizeResult.Code[k] != GetCodeByImage(imageType)[k])
                         {
-                            for (var y = 0; y < Size; y++)
+                            for (var x = 0; x < Size; x++)
                             {
-                                if (recognizeResult.AssociationLayer[x][y] == 1)
+                                for (var y = 0; y < Size; y++)
                                 {
-                                    lock (Weights)
+                                    if (recognizeResult.AssociationLayer[x][y] == 1)
                                     {
-                                        Weights[x][y][(int)imageType] += WeightCorrection;
+                                        lock (Weights)
+                                        {
+                                           if (recognizeResult.Code[k] == '0')
+                                                Weights[x][y][k] += WeightCorrection;
+                                           else
+                                                Weights[x][y][k] -= WeightCorrection;
+                                        }
                                     }
                                 }
                             }
                         }
-                    }
-                    // наказать лишних
-                    var wrongImages = recognizeResult.ImageTypes.Where(img => img != imageType).ToList();
-                    foreach (var wrongImage in wrongImages)
-                    {
-                        for (var x = 0; x < Size; x++)
-                        {
-                            for (var y = 0; y < Size; y++)
-                            {
-                                if (recognizeResult.AssociationLayer[x][y] == 1)
-                                {
-                                    lock (Weights)
-                                    {
-                                        Weights[x][y][(int)wrongImage] -= WeightCorrection;
-                                    }
-                                }
-                            }
-                        }
+                        
                     }
                 }
-
-                if (step % 10000 == 0)
+                
+                
+                if (step % 1000 == 0)
                 {
                     double percentOfSuccess = successes * 100.0 / iterationCount;
                     Console.WriteLine($"Процесс: {Thread.CurrentThread.ManagedThreadId} | Шаг: {iterationCount} | Успешно: {percentOfSuccess}%");
@@ -170,7 +184,8 @@ namespace PerceptronV2
 
         public struct RecognizeResult
         {
-            public List<ImageType> ImageTypes;
+            public string Code;
+            public ImageType ImageType;
             public List<List<int>> AssociationLayer;
         }
 
@@ -220,11 +235,11 @@ namespace PerceptronV2
             }
         }
 
-        private List<ImageType> GetRecognizedImageTypes(List<List<int>> associationLayer)
+        private string GetRecognizedImageTypeCode(List<List<int>> associationLayer)
         {
-            var effectorLayer = new List<double> {0.0,0.0,0.0,0.0};
-            var result = new List<ImageType>();
-            for (var k = 0; k < 4; k++)
+            var effectorLayer = new List<double> { 0.0, 0.0 };
+            var code = "";
+            for (var k = 0; k < 2; k++)
             {
                 for (var x = 0; x < Size; x++)
                 {
@@ -235,10 +250,14 @@ namespace PerceptronV2
                     }
                 }
                 if (effectorLayer[k] > 0)
-                    result.Add((ImageType)k);
+                    code += "1";
+                else
+                    code += "0";
+
+               
             }
 
-            return result;
+            return code;
         }
         public RecognizeResult Recognize(Bitmap image)
         {
@@ -252,11 +271,12 @@ namespace PerceptronV2
             GenerateAssociationLayerOutputs(associationLayer);
 
             // Отображение
-            var result = GetRecognizedImageTypes(associationLayer);
+            var result = GetRecognizedImageTypeCode(associationLayer);
 
             return new RecognizeResult
             {
-                ImageTypes = result,
+                Code = result,
+                ImageType = GetImageByCode(result),
                 AssociationLayer = associationLayer
             };
         }
@@ -268,50 +288,35 @@ namespace PerceptronV2
             {
                 g.Clear(Color.White);
 
-                var side = Random.Next(Size / 5, Size / 2);
+                var side = Random.Next(Size / 3, Size / 2);
                 var centerX = Random.Next(side, Size - side);
                 var centerY = Random.Next(side, Size - side);
-                Point[] points;
-                switch (imageType)
+
+                using (Font font = new Font("Times New Roman", side))
                 {
-                    case ImageType.LetterB:
-                        points = new Point[6];
-                        points[0] = new Point(centerX + side / 2, centerY - side / 2);
-                        points[1] = new Point(centerX - side / 2, centerY - side / 2);
-                        points[2] = new Point(centerX - side / 2, centerY + side / 2);
-                        points[3] = new Point(centerX + side / 2, centerY + side / 2);
-                        points[4] = new Point(centerX + side / 2, centerY);
-                        points[5] = new Point(centerX - side / 2, centerY);
-                        g.DrawLines(Pens.Black, points);
+                    var letter = "";
+                    switch (imageType)
+                    {
+                          
+                        case ImageType.LetterB:
+                            letter = "Б";
+                            break;
+
+                        case ImageType.LetterG:
+                        letter = "Г";
                         break;
 
-                    case ImageType.LetterG:
-                        points = new Point[3];
-                        points[0] = new Point(centerX + side / 2, centerY - side / 2);
-                        points[1] = new Point(centerX - side / 2, centerY - side / 2);
-                        points[2] = new Point(centerX - side / 2, centerY + side / 2);
-                        g.DrawLines(Pens.Black, points);
-                        break;
-
-                    case ImageType.LetterE:
-                        points = new Point[4];
-                        points[0] = new Point(centerX + side / 2, centerY - side / 2);
-                        points[1] = new Point(centerX - side / 2, centerY - side / 2);
-                        points[2] = new Point(centerX - side / 2, centerY + side / 2);
-                        points[3] = new Point(centerX + side / 2, centerY + side / 2);
-                        g.DrawLines(Pens.Black, points);
-                        g.DrawLine(Pens.Black, new Point(centerX + side / 2, centerY), new Point(centerX - side / 2, centerY));
+                        case ImageType.LetterE:
+                        letter = "Е";
                         break;
 
                         case ImageType.LetterI:
-                        points = new Point[4];
-                        points[0] = new Point(centerX - side / 2, centerY - side / 2);
-                        points[1] = new Point(centerX - side / 2, centerY + side / 2);
-                        points[2] = new Point(centerX + side / 2, centerY - side / 2);
-                        points[3] = new Point(centerX + side / 2, centerY + side / 2);
-                        g.DrawLines(Pens.Black, points);
+                            letter = "И";
                         break;
+                    }
+                    g.DrawString(letter, font, Brushes.Black, centerX - side / 2, centerY - side / 2);
                 }
+                
             }
             return image;
         }

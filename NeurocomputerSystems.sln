@@ -7,6 +7,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Perceptron", "Perceptron\Pe
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PerceptronV2", "PerceptronV2\PerceptronV2.csproj", "{E5CE3031-283D-4989-ACC8-456B601F7ABE}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PerceptronV3", "PerceptronV3\PerceptronV3.csproj", "{68EE21DF-CFB5-433F-B43F-EF42E3D1E89C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Energy", "Energy\Energy.csproj", "{F282D030-2CD8-48AA-86D2-3A4824908E32}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +25,14 @@ Global
 		{E5CE3031-283D-4989-ACC8-456B601F7ABE}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{E5CE3031-283D-4989-ACC8-456B601F7ABE}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{E5CE3031-283D-4989-ACC8-456B601F7ABE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{68EE21DF-CFB5-433F-B43F-EF42E3D1E89C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{68EE21DF-CFB5-433F-B43F-EF42E3D1E89C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{68EE21DF-CFB5-433F-B43F-EF42E3D1E89C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{68EE21DF-CFB5-433F-B43F-EF42E3D1E89C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F282D030-2CD8-48AA-86D2-3A4824908E32}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F282D030-2CD8-48AA-86D2-3A4824908E32}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F282D030-2CD8-48AA-86D2-3A4824908E32}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F282D030-2CD8-48AA-86D2-3A4824908E32}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

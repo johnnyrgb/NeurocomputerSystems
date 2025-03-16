@@ -1,6 +1,7 @@
-﻿using PerceptronV2;
+﻿
+using PerceptronV3;
 
-PerceptronV2.PerceptronV2 perceptron = new PerceptronV2.PerceptronV2();
+PerceptronV3.PerceptronV3 perceptron = new PerceptronV3.PerceptronV3();
 perceptron.Run();
 int successes = 0;
 for (int i = 0; i < 1000; i++)
@@ -15,8 +16,8 @@ for (int i = 0; i < 1000; i++)
     else if (i % 4 == 3)
         imageType = ImageType.LetterI;
     var image = perceptron.GenerateImage(imageType);
-    var result = perceptron.Recognize(image).ImageTypes;
-    if (result.Count == 1 && result.Contains(imageType))
+    var result = perceptron.Recognize(image).ImageType;
+    if (imageType == result)
         successes += 1;
 
     if (i >= 979)
@@ -31,17 +32,7 @@ for (int i = 0; i < 1000; i++)
             }
             Console.WriteLine();
         }
-        if (result.Count == 1)
-            Console.WriteLine($"Я думаю, что это {result[0]}!\n======================");
-        else if (result.Count > 1)
-        {
-            Console.WriteLine("Я думаю, что это: ");
-            foreach (var item in result)
-            {
-                Console.Write($"{item} ");
-            }
-        }
-        else { Console.WriteLine("Я ничего не думаю");}
+        Console.WriteLine($"Я думаю, что это {result}!\n======================");
     }
 }
 
