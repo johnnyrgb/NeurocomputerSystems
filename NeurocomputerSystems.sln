@@ -9,7 +9,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PerceptronV2", "PerceptronV
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PerceptronV3", "PerceptronV3\PerceptronV3.csproj", "{68EE21DF-CFB5-433F-B43F-EF42E3D1E89C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Energy", "Energy\Energy.csproj", "{F282D030-2CD8-48AA-86D2-3A4824908E32}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MultithreadingPerceptron", "Energy\MultithreadingPerceptron.csproj", "{F282D030-2CD8-48AA-86D2-3A4824908E32}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

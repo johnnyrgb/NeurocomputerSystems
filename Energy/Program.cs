@@ -10,7 +10,7 @@ var settings = new Settings
     Size = 100,
     ConnectionsCount = 100,
     ActivationLimit = 3,
-    StepCount = 1_000_000,
+    StepCount = 50_000,
     WeightCorrection = 0.05
 };
 
@@ -18,7 +18,7 @@ var perceptron = new Perceptron(generator, settings);
 
 
 // Обучение перцптрона
-var threadsNumber = 4;
+var threadsNumber = 12;
 var stopwatch = Stopwatch.StartNew();
 perceptron.Run(threadsNumber);
 stopwatch.Stop();

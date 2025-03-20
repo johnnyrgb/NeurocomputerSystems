@@ -20,8 +20,7 @@ public class DatasetManager
     /// <summary>
     ///     Генерация двоичных кодов для символов.
     /// </summary>
-    /// <param name="characters">Список символов</param>
-    /// <returns></returns>
+    ///    /// <returns></returns>
     private Dictionary<string, string> GenerateBinaryCodes()
     {
         Dictionary<string, string> binaryCodes = new();
@@ -55,7 +54,7 @@ public class DatasetManager
             g.Clear(Color.White);
 
             // Выбор случайного размера хитбокса символа и его координат
-            // Пока что размер одинаковый, так быстрее обучается
+            // Для ускорения обучения размер одинаковый
             var hitboxSize = Random.Next(canvasSize / 2, canvasSize / 2);
 
             // Выбор случайной координаты центра хитбокса символа
@@ -74,9 +73,6 @@ public class DatasetManager
                 /*
                  * ВНИМАНИЕ: Фактический контур символа меньше, чем размер строки,
                  * поэтому символ занимает не весь хитбокс.
-                 *
-                 * Лучше всего использовать моноширные шрифты, чтобы символы гарантировано
-                 * помещились в хитбокс по ширине
                  */
             }
         }

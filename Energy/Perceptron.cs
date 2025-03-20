@@ -7,6 +7,9 @@ public struct Coordinates
     public int X, Y;
 }
 
+/// <summary>
+///     Структура с гиперпараметрами перцептрона.
+/// </summary>
 public struct Settings
 {
     public int Size;
@@ -19,12 +22,14 @@ public class Perceptron
 {
     public Perceptron(DatasetManager datasetManager, Settings settings)
     {
+        // Задаем параметры для перцептрона
         Size = settings.Size;
         ConnectionsCount = settings.ConnectionsCount;
         ActivationLimit = settings.ActivationLimit;
         StepCount = settings.StepCount;
         WeightCorrection = settings.WeightCorrection;
 
+        // Задаем датасет и длину бинарного кода образов
         DatasetManager = datasetManager;
         BinaryCodeLength = datasetManager.GetCurrentBinaryCodeLength();
 
@@ -36,7 +41,7 @@ public class Perceptron
     }
 
     /// <summary>
-    ///     Инициализация весов.
+    ///     Инициализация весов пустыми списками.
     /// </summary>
     private void InitializeWeights()
     {
@@ -53,7 +58,7 @@ public class Perceptron
     }
 
     /// <summary>
-    ///     Инициализация связей между рецепторами и ассоциативным слоем
+    ///     Инициализация связей между рецепторами и ассоциативным слоем пустыми списками.
     /// </summary>
     private void InitializeConnections()
     {
@@ -103,38 +108,54 @@ public class Perceptron
          */
         Parallel.For((long)1, StepCount + 1, parallelOptions, step =>
         {
-            // Генерируем случайное изображение
+            // Получаем случайный символ
             var characterToRecognize = DatasetManager.GetCharacterByIndex((int)step);
+
+            // Получаем код символа
             var characterToRecognizeBinaryCode =
                 DatasetManager.GetBinaryCodeByCharacter(characterToRecognize)!;
+
+            // Генерируем изображение символа
             var imageToRecognize = DatasetManager.GenerateImage(characterToRecognize, Size);
 
             // Распознаем изображение
             var recognizeResult = Recognize(imageToRecognize);
-
             // Если изображение распознано, прибавляем успех
             if (recognizeResult.Code == characterToRecognizeBinaryCode)
                 Interlocked.Increment(ref successes);
+
+            
             // Обучаем, если изображение не распознано
+            // Перебираем распознанный код и наказываем ответственных за неверные биты
+            // Блокируем чтение и запись Weights протяжении всего процесса наказывания
             else
+            {
+                weightsLock.EnterWriteLock();
+                try
+                { 
                 for (var k = 0; k < BinaryCodeLength; k++)
+                    // Если биты не совпадают, изменяем ответственные веса
                     if (recognizeResult.Code[k] != characterToRecognizeBinaryCode[k])
                         for (var x = 0; x < Size; x++)
-                        for (var y = 0; y < Size; y++)
-                            if (recognizeResult.AssociationLayer[x][y] == 1)
-                                lock (Weights)
-                                {
-                                    if (recognizeResult.Code[k] == '0')
-                                        Weights[x][y][k] += WeightCorrection;
-                                    else
-                                        Weights[x][y][k] -= WeightCorrection;
-                                }
+                            for (var y = 0; y < Size; y++)
+                                if (recognizeResult.AssociationLayer[x][y] == 1)
+                                        if (recognizeResult.Code[k] == '0')
+                                            Weights[x][y][k] += WeightCorrection;
+                                        else
+                                            Weights[x][y][k] -= WeightCorrection;
+                }
+                finally
+                {
+                    weightsLock.ExitWriteLock();
+                }
+            }
+               
 
             // Увеличиваем общее количество выполненных итераций
             Interlocked.Increment(ref сurrentStepCount);
 
             // Выводим промежуточные результаты
-            if (step % 10 == 0)
+            if (step % 1000 == 0)
             {
                 var percentOfSuccess = successes * 100.0 / сurrentStepCount;
                 Console.WriteLine(
@@ -168,6 +189,7 @@ public class Perceptron
     /// <param name="image"></param>
     private void GenerateAssociationLayerInputs(List<List<int>> associationLayer, Bitmap image)
     {
+        // Перебираем пиксели изображения
         for (var x = 0; x < Size; x++)
         for (var y = 0; y < Size; y++)
         {
@@ -188,6 +210,7 @@ public class Perceptron
     /// <param name="associationLayer"></param>
     private void GenerateAssociationLayerOutputs(List<List<int>> associationLayer)
     {
+        // Активируем нейроны, которые больше установленного лимита (остальные 0)
         for (var x = 0; x < Size; x++)
         for (var y = 0; y < Size; y++)
             associationLayer[x][y] = associationLayer[x][y] > ActivationLimit ? 1 : 0;
@@ -202,25 +225,34 @@ public class Perceptron
     {
         var effectorLayer = new List<double>();
         var code = "";
-        for (var k = 0; k < BinaryCodeLength; k++)
+        // Блокируем веса на запись, чтобы никто их не менял во время отображения
+        // Остальные потоки могут их читать, но не могут записывать
+        weightsLock.EnterReadLock();
+        try
         {
-            effectorLayer.Add(0.0);
-            for (var x = 0; x < Size; x++)
-            for (var y = 0; y < Size; y++)
-                effectorLayer[k] += associationLayer[x][y] * Weights[x][y][k];
+            for (var k = 0; k < BinaryCodeLength; k++)
+            {
+                effectorLayer.Add(0.0);
+                for (var x = 0; x < Size; x++)
+                    for (var y = 0; y < Size; y++)
+                        effectorLayer[k] += associationLayer[x][y] * Weights[x][y][k];
 
-            if (effectorLayer[k] > 0)
-                code += "1";
-            else
-                code += "0";
+                if (effectorLayer[k] > 0)
+                    code += "1";
+                else
+                    code += "0";
+            }
         }
-
+        finally
+        {
+            weightsLock.ExitReadLock();
+        }
         return code;
     }
 
     public RecognizeResult Recognize(Bitmap image)
     {
-        // Формируем ассоциативный слой
+        // Инициализируем ассоциативный слой
         var associationLayer = InitializeAssociationLayer();
 
         // Формируем входы ассоциативного слоя
@@ -229,8 +261,9 @@ public class Perceptron
         // Формируем выходы ассоциативного слоя
         GenerateAssociationLayerOutputs(associationLayer);
 
-        // Отображение
+        // Распознаем изображение и получаем код символа
         var binaryCode = GetBinaryCode(associationLayer);
+     
 
         return new RecognizeResult
         {
@@ -281,6 +314,9 @@ public class Perceptron
     #endregion
 
     #region Служебные переменные
+
+    
+    private readonly ReaderWriterLockSlim weightsLock = new ReaderWriterLockSlim();
 
     // Текущий счетчик итераций
     private int сurrentStepCount;
